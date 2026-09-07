@@ -1,4 +1,4 @@
-  # AI 聊天小助手 (AI Chat Assistant)
+  # 小吴 AI 聊天小助手 (AI Chat Assistant)
 
   一个用 FastAPI 搭建的 AI 聊天小作品：在网页里输入问题，后端调用 DeepSeek 大模型，返回 AI 回答，并支持多轮对话记忆。
 
