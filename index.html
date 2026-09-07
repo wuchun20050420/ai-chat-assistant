@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>小吴的 AI 小助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "微软雅黑", "PingFang SC", Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0ff 0%, #f5f0ff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .card {
+            width: 100%;
+            max-width: 680px;
+            height: 92vh;
+            max-height: 860px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(60, 80, 140, .18);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        /* 顶栏 */
+        .head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: #fff;
+            border-bottom: 1px solid #f0f1f5;
+        }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .logo {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: linear-gradient(135deg, #4f8bff, #2f6fed);
+            color: #fff; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .brand .name { font-size: 17px; font-weight: 700; color: #222; }
+        .brand .sub { font-size: 12px; color: #9aa0ac; }
+        #newBtn {
+            border: 1px solid #e3e6ee; background: #fafbff; color: #4a5060;
+            padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+        }
+        #newBtn:hover { background: #eef1fa; }
+        /* 聊天区 */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 20px;
+            background: linear-gradient(180deg, #fafbff 0%, #f6f7ff 100%);
+        }
+        .row { display: flex; margin-bottom: 14px; align-items: flex-end; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #eef2ff; color: #4f8bff; font-size: 17px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-right: 8px;
+        }
+        .bubble {
+            max-width: 78%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .row.ai .bubble {
+            background: #fff; color: #2c3140;
+            border: 1px solid #eceef4;
+            border-bottom-left-radius: 4px;
+        }
+        .row.user { flex-direction: row-reverse; }
+        .row.user .avatar { margin-right: 0; margin-left: 8px; background: #dfe8ff; }
+        .row.user .bubble {
+            background: linear-gradient(135deg, #4f8bff, #2f6fed);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        /* 输入栏 */
+        .input-bar {
+            display: flex; gap: 10px;
+            padding: 14px 16px 18px;
+            background: #fff; border-top: 1px solid #f0f1f5;
+        }
+        .input-bar input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #dfe3ee; border-radius: 24px;
+            font-size: 15px; outline: none; background: #f7f8fc;
+        }
+        .input-bar input:focus { border-color: #4f8bff; background: #fff; }
+        #sendBtn {
+            border: none; border-radius: 24px; padding: 0 22px;
+            background: linear-gradient(135deg, #4f8bff, #2f6fed);
+            color: #fff; font-size: 15px; cursor: pointer;
+        }
+        #sendBtn:hover { filter: brightness(1.05); }
+        #sendBtn:disabled { opacity: .6; cursor: not-allowed; }
+        /* 滚动条美化 */
+        #chat::-webkit-scrollbar { width: 8px; }
+        #chat::-webkit-scrollbar-thumb { background: #d5d9e6; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="head">
+            <div class="brand">
+                <div class="logo">🤖</div>
+                <div>
+                    <div class="name">小吴的 AI 助手</div>
+                    <div class="sub">DeepSeek 驱动 · 多轮对话</div>
+                </div>
+            </div>
+            <button id="newBtn" onclick="newChat()">➕ 新对话</button>
+        </div>
+
+        <div id="chat"></div>
+
+        <div class="input-bar">
+            <input id="input" placeholder="输入你的问题，回车发送…" autocomplete="off">
+            <button id="sendBtn" onclick="send()">发送</button>
+        </div>
+    </div>
+
+    <script>
+    // 当前会话编号：存在浏览器本地，刷新不丢
+    function newId() {
+        return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+    let sid = localStorage.getItem("ai_sid");
+    if (!sid) { sid = newId(); localStorage.setItem("ai_sid", sid); }
+
+    function addMsg(role, text) {
+        const chat = document.getElementById("chat");
+        const row = document.createElement("div");
+        row.className = "row " + role;
+
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.textContent = role === "user" ? "🙂" : "🤖";
+
+        const b = document.createElement("div");
+        b.className = "bubble";
+        b.textContent = text;
+
+        row.appendChild(avatar);
+        row.appendChild(b);
+        chat.appendChild(row);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function send() {
+        const input = document.getElementById("input");
+        const btn = document.getElementById("sendBtn");
+        const text = input.value.trim();
+        if (!text) return;
+
+        addMsg("user", text);
+        input.value = "";
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        try {
+            const resp = await fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "message": text, "session_id": sid })
+            });
+            const data = await resp.json();
+            addMsg("ai", data.reply);
+        } catch (err) {
+            addMsg("ai", "出错了：" + err);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "发送";
+            input.focus();
+        }
+    }
+
+    function newChat() {
+        if (!confirm("开启新对话？当前这组对话会保留，但页面会清空。")) return;
+        sid = newId();
+        localStorage.setItem("ai_sid", sid);
+        document.getElementById("chat").innerHTML = "";
+    }
+
+    // 页面打开时，把当前会话以前的记录显示出来
+    async function loadHistory() {
+        try {
+            const resp = await fetch("/history?session_id=" + encodeURIComponent(sid));
+            const data = await resp.json();
+            for (const m of data.messages) {
+                addMsg(m.role === "user" ? "user" : "ai", m.content);
+            }
+        } catch (err) {}
+    }
+    loadHistory();
+
+    const input = document.getElementById("input");
+    input.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") send();
+    });
+    input.focus();
+    </script>
+</body>
+</html>
